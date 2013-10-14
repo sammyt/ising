@@ -1,6 +1,7 @@
 (ns retro.core
   (:require
     [c2.core]
+    [goog.dom :as dom]
     [cljs.core.async :refer [>! <! chan timeout alts!]])
   (:require-macros 
     [c2.util :refer [bind! pp]]
