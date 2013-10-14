@@ -8,7 +8,8 @@
                  [org.clojure/core.async "0.1.242.0-44b1e3-alpha"]
                  [com.keminglabs/c2 "0.2.3"]]
   :hooks [leiningen.cljsbuild]
-  :plugins [[lein-cljsbuild "0.3.3"]]
+  :plugins [[lein-cljsbuild "0.3.3"]
+            [lein-kibit "0.0.8"]]
   :cljsbuild {
      :builds [{
        :id "dev"
