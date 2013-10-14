@@ -13,8 +13,7 @@
 (defn- row 
   "helper function to generate vector of random 1s and -1s"
   [i] 
-  (vec (take i (repeatedly 
-                 #(let [i (rand-int 2)] (if (zero? i) -1 i))))))
+  (vec (repeatedly i #(let [i (rand-int 2)] (if (zero? i) -1 i)))))
 
 (defn- flip
   [spin]
@@ -29,7 +28,7 @@
 (defn make-lattice 
   "build a lattice of dimension i by j"
   [i j] 
-  (vec (take j (repeatedly #(row i)))))
+  (vec (repeatedly j #(row i))))
 
 (defn rand-pos
   "generate a random position within a lattice"
