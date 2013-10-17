@@ -17,8 +17,7 @@
   "generates randomly positioned positive spins within a 2d space"
   ([] (positive-spins 20 20))
   ([w h] 
-   (into #{} (for [x (range w) y (range h) 
-                  :when (< (rand) 0.5)] [x y]))))
+   (set (for [x (range w) y (range h) :when (< (rand) 0.5)] [x y]))))
 
 (defn- cyclic
   "enforce cyclic boundaries on positions" 
