@@ -8,3 +8,5 @@ pom.xml.asc
 /.lein-*
 /.nrepl-port
 public/retro-dev.js
+
+public/retro.js

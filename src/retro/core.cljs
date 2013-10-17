@@ -1,127 +1,84 @@
 (ns retro.core
   (:require
-    [c2.core]
     [goog.dom :as dom]
     [cljs.core.async :refer [>! <! chan timeout alts!]])
   (:require-macros 
-    [c2.util :refer [bind! pp]]
     [cljs.core.async.macros :refer [go]]))
 
-(defn- exp 
-  ([pow] (Math/exp pow)))
+(def not-nil? (complement nil?))
 
-(defn- row 
-  "helper function to generate vector of random 1s and -1s"
-  [i] 
-  (vec (repeatedly i #(let [i (rand-int 2)] (if (zero? i) -1 i)))))
+(defn- lattice-neighbours
+  "Calculates the nearest neighbours within a 2d infinite lattice"
+  [[x y]]
+  (for [[dx dy] #{[-1 0] [1 0] [0 -1] [0 1]}] 
+    [(+ x dx) (+ y dy)]))
 
-(defn- flip
-  [spin]
-  (* -1 spin))
+(defn- positive-spins 
+  "generates randomly positioned positive spins within a 2d space"
+  ([] (positive-spins 20 20))
+  ([w h] 
+   (into #{} (for [x (range w) y (range h) 
+                  :when (< (rand) 0.5)] [x y]))))
 
-(defn flip!
-  [lattice [i j]]
-  (let [row (nth lattice j)]
-    (assoc lattice j
-      (assoc row i (flip (nth row i))))))
+(defn- cyclic
+  "enforce cyclic boundaries on positions" 
+  [positions w h]
+  (map (fn [[x y]] [(mod x w) (mod y h)]) positions))
 
-(defn make-lattice 
-  "build a lattice of dimension i by j"
-  [i j] 
-  (vec (repeatedly j #(row i))))
+(defn- boltzmann
+  "calculate the boltzmann factor"
+  [energy-delta temperature]
+  (Math/exp (- (/ energy-delta temperature))))
 
-(defn rand-pos
-  "generate a random position within a lattice"
-  [lattice]
-  (let [j (int (count lattice))
-        i (int (count (first lattice)))]
-    [(rand-int i) (rand-int j)]))
+(defn- energy-delta
+  "calculate the change in energy should a spin be flipped"
+  [positives neighbours]
+  (+ -4 (* 2 (count (filter not-nil? (map positives neighbours))))))
 
-(defn spin-at
-  "find the spin at a given lattice position"
-  [lattice [i j]]
-  (nth (nth lattice j) i))
-
-(defn neighbours-spins 
-  "find the spins of the nearest neighbours"
-  [lattice [i j]]
-  (let [h (count lattice)
-        w (count (first lattice))]
-    (map 
-      (partial spin-at lattice) 
-      [[i (mod (inc j) h)]
-       [i (mod (dec j) h)]
-       [(mod (inc i) w) j]
-       [(mod (dec i) w) j]])))
-
-(defn energy
-  [spin nn-spins]
-  (* 2 spin (reduce + nn-spins)))
-
-(defn total-energy 
-  [lattice]
-  (reduce + (flatten lattice)))
-
-(defn metropolis-step
-  [lattice temp]
-  (let [pos  (rand-pos lattice)
-        spin (spin-at lattice pos)
-        neighbours (neighbours-spins lattice pos)
-        before (energy spin neighbours)
-        after  (energy (flip spin) neighbours)
-        delta (- before after)]
-    (if (or (<= delta 0) (< (rand) (exp (- (/ delta temp)))))
-      (flip! lattice pos)
-      lattice)))
-
-(defn simulate-at-temp
-  ([lattice temp] 
-    (simulate-at-temp lattice temp (count lattice)))
-  ([lattice temp iterations]
-    (loop [lattice lattice i 0]
-      (if (< i iterations)
-        (recur 
-          (metropolis-step lattice temp)
-          (inc i))
-        lattice))))
+(defn- metropolis-step
+  "for a given temperature, progress the system on by one monte-carlo step"
+  [width height temperature positives]
+  (let [pos [(rand-int width) (rand-int height)]
+        spin (if (contains? positives pos) 1 -1)
+        neighbours (cyclic (lattice-neighbours pos) width height)
+        delta (* spin (energy-delta positives neighbours))
+        flip? (or (neg? delta) 
+                  (< (rand) (boltzmann delta temperature)))] 
+    (if flip? 
+      (if (contains? positives pos) 
+        (disj positives pos) 
+        (conj positives pos))
+      positives)))
 
 
-(bind! 
-  "div.ising" 
-  [:div [:canvas.draw {:height (str 500 "px")
-                       :width (str 500 "px")}]])
+(defn- context-2d
+  [el]
+  (.getContext el "2d"))
 
-(defn draw-rect
-  [ctx [x y] [h w]]
-  (.fillRect ctx x y h w))
+(defn- draw-rect
+  ([ctx x y] 
+   (draw-rect ctx x y 20 20))
+  ([ctx x y w h]
+   (.fillRect ctx x y w h)))
 
-(defn draw-spin
-  [ctx size spin pos]
-  (doall 
-    (if (neg? spin)
-      (aset ctx "fillStyle" "#ff0000")
-      (aset ctx "fillStyle" "#00ff00"))
-    (draw-rect ctx pos size)))
+(let [ctx (context-2d (dom/getElement "out"))]
+  (defn- render
+    [positions]
+    (do
+      (.clearRect ctx 0 0 400 400)
+      (doall (for [[x y] positions] 
+               (draw-rect ctx (* 20 x) (* 20 y)))))))
 
-(defn draw-lattice
-  [lattice draw]
-  (map-indexed 
-    (fn [j r] 
-      (doall 
-        (map-indexed
-          (fn [i s]
-            (draw s [(* j 21) (* i 21)] [20 20]))
-          r)))
-    lattice))
-
-(go
-  (let [canvas (dom/getElementByClass "draw")
-        ctx (.getContext canvas "2d") ]
-    (loop [lattice (make-lattice 30 30)]
+(go 
+  (let [width 20 height 20 
+        temperature 1
+        positives (positive-spins width height)
+        step (partial metropolis-step width height)]
+    (loop [positives positives i 0] 
       (<! (timeout 5))
-      (doall 
-        (draw-lattice
-          lattice
-          (partial draw-spin ctx [20 20])))
-      (recur (simulate-at-temp lattice 1 100)))))
+      (when (< i 10000)
+        (render positives)
+        (recur (step temperature positives) (inc i))))))
+
+
 
