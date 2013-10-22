@@ -2,19 +2,168 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>ising</title> 
+  <title>functional metropolis</title>
+ <style>
+  td {
+    padding : 0 0.5em;
+  }
+  table {
+    margin: 0 auto;
+  }
+  </style>
+
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="typo.css">
+  <link rel="stylesheet" href="highlight/styles/ascetic.css">
   </head>
 <style>
-body {
-  padding-left : 1%;
-  padding-bottom: 150px;
-}
-
 </style>
   <body>
-  <div class="ising">
-    <canvas id="out" width="500px" height="500px"></cancas>
-  </div>
+  <div class="container">
+    <header>
+      <h1>Towards a functional Metropolis</h1>
+    </header>
+    <!--pre>
+    * looking back at past work
+    * all solutions are imperative
+    * algorithm lost in implementation/optimization
+    * want to see a functional approach
+    * curious about using the browser as a simulation platform
+    * enter ClojureScript
+    * walk through solution
+    </pre-->
+
+    <p>The other day I was looking back over some old emails, and I found
+    a thread between myself and one of my old university tutors.  I followed
+    the thread to find my submission of a Java simulation of the Ising Model.
+    I took a peek for old times sake.</p> 
+
+    <p>Looking over old code can be a humbling experience.</p>
+
+    <p>Once I had recovered from the initial shock I started to dig into the
+    physics of the simulation.  It's a simple enough simulation of the Ising
+    Model in two dimensions.  I say simple, because the model is conceptually
+    simple to understand given a few diagrams and a couple of paragraphs.
+    I know this because I quickly gave up trying to figure out how my
+    simulation mapped back to a physical system and took to the internets for
+    answers.</p>
+
+    <p>Amongst the excellent explanations there were a number of other
+    simulations (mostly in Java) whose code I could read.  They all appeared to
+    be very similar (including my original solution), solving the model
+    with very imperative code.  Often making optimizations that make some
+    pretty large readability sacrifices.</p>
+
+    <p>I've been working heavily in ClojureScript recently, its functional
+    roots and elegant data structures have had an big impact on how I think
+    about and solve problems.  So I thought I'd have a go at rebuilding the
+    simulation in idiomatic (to the best of my current knowledge) ClojureScript
+    to run within the browser.</p>
+
+    <h2>Ising</h2>
+
+    <p>The Ising model describes a idealised magnetic material, by modeling
+    a series of interacting charged particles.  It's named after a clever chap
+    called Ernest Ising who solved the problem (in 1 dimension) mathematically
+    for his PHd.  This article is going to be pretty light on mathematics
+    (phew), instead I'll be doing a Monte Carlo simulation of the Ising model in
+    2 dimensions using the Metropolis algorithm.</p>
+
+    <p>So before diving into the algorithm here is a super basic explanation of
+    the Ising model in 2 dimensions.  I recommend if you are interested you
+    take a look at some of the other explanations out there, as I'm going to
+    gloss over lots of the details, just explaining what I hope is enough to
+    understand the code and the principles of the physical interactions.</p> 
+
+    <p>Picture a 2D lattice of charged particles, called spins.  Each of the
+    spins can either point up or down.  In this particular lattice our spins
+    are in their lowest energy state when spins are aligned in the same
+    direction (giving us a ferromagnet).  Physical systems love there
+    lowest energy states, so we expect that if we don't add any extra energy
+    (heat) then the spins will all attempt to align, and thus magnetise.</p>
+
+    <p>Here is a lattice with some energy stored up.  We can see that it is
+    not in its lowest energy state by looking at the centre most spin, which
+    is pointing down when all the spins closest to it are pointing up.</p>
+
+    <table>
+     <tr>
+        <td>&uarr;</td>
+        <td>&darr;</td>
+        <td>&darr;</td>
+        <td>&darr;</td>
+        <td>&darr;</td>
+      </tr>
+      <tr>
+        <td>&darr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+      </tr>
+      <tr>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&darr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+      </tr>
+      <tr>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+      </tr>
+      <tr>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+        <td>&uarr;</td>
+      </tr>
+    </table>
+
+    <p>At a low enough temperature we would expect that the lattice would, over
+    time, lower its energy and the spins would align</p>
+
+
+    <h2>Metropolis</h2>
+
+    <p>The Metropolis algorithm gives us some simple steps we can take to
+    update our lattice, taking it from one state to another.  The states that
+    the metropolis algorithm takes us through should progress the system in
+    a way the is consistent with its physical rules, but not so computationally
+    exhaustive that we would never get anywhere. </p>
+
+    <p>To take the lattice from one state to another we will attempt to flip
+    a single spin, reversing its direction.  The algorithm give us the
+    following method to determine if the flip is acceptable.</p>
+
+     <ol>
+      <li>Choose any spin from within the lattice at random</li>
+      <li>Calculate the energy require to flip just that spin</li>
+      <li>If the energy require to flip it is negative, then make the
+      flip, and stop. If however the flip would require energy to complete
+      then only flip it based on a calculated probability.</li>
+    </ol>
+
+    <p>That sounds fairly straight forward.  There are two things we need to
+    be able to calculate in order to make it work.  Firstly we need to know
+    how to find the change in energy that would occur if a spin is flipped.
+    Then we need to be able to calculate this probability, used to determine
+    if the spin should be flipped when the energy increases.</p>
+
+    <p></p>
+
+   <div class="ising">
+      <canvas id="out" width="500px" height="500px"></cancas>
+    </div>
+</div>
+ 
+  <script type="text/javascript" src="//use.typekit.net/oxa1lve.js"></script>
+  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+
   <script type="text/javascript" src="retro-dev.js"></script>
 </body>
 </html>

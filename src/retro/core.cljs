@@ -40,10 +40,9 @@
   (let [pos [(rand-int width) (rand-int height)]
         spin (if (contains? positives pos) 1 -1)
         neighbours (cyclic (lattice-neighbours pos) width height)
-        delta (* spin (energy-delta positives neighbours))
-        flip? (or (neg? delta) 
-                  (< (rand) (boltzmann delta temperature)))] 
-    (if flip? 
+        delta (* spin (energy-delta positives neighbours))] 
+    (if (or (neg? delta) 
+            (< (rand) (boltzmann delta temperature)))
       (if (contains? positives pos) 
         (disj positives pos) 
         (conj positives pos))
@@ -68,7 +67,7 @@
       (doall (for [[x y] positions] 
                (draw-rect ctx (* 20 x) (* 20 y)))))))
 
-(go 
+#_(go 
   (let [width 20 height 20 
         temperature 1
         positives (positive-spins width height)
