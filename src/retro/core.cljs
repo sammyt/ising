@@ -7,47 +7,45 @@
 
 (def not-nil? (complement nil?))
 
-(defn- lattice-neighbours
+(defn- neighbours-2d 
   "Calculates the nearest neighbours within a 2d infinite lattice"
   [[x y]]
   (for [[dx dy] #{[-1 0] [1 0] [0 -1] [0 1]}] 
     [(+ x dx) (+ y dy)]))
 
-(defn- positive-spins 
+(defn- lattice-2d 
   "generates randomly positioned positive spins within a 2d space"
-  ([] (positive-spins 20 20))
-  ([w h] 
-   (set (for [x (range w) y (range h) :when (< (rand) 0.5)] [x y]))))
+  [w h] 
+   (set (for [x (range w) y (range h) :when (< (rand) 0.5)] [x y])))
 
-(defn- cyclic
+(defn- cyclic-2d
   "enforce cyclic boundaries on positions" 
   [positions w h]
   (map (fn [[x y]] [(mod x w) (mod y h)]) positions))
 
-(defn- boltzmann
+(defn- weighting 
   "calculate the boltzmann factor"
   [energy-delta temperature]
   (Math/exp (- (/ energy-delta temperature))))
 
-(defn- energy-delta
+(defn- energy
   "calculate the change in energy should a spin be flipped"
   [positives neighbours]
   (+ -4 (* 2 (count (filter not-nil? (map positives neighbours))))))
 
-(defn- metropolis-step
-  "for a given temperature, progress the system on by one monte-carlo step"
-  [width height temperature positives]
-  (let [pos [(rand-int width) (rand-int height)]
-        spin (if (contains? positives pos) 1 -1)
-        neighbours (cyclic (lattice-neighbours pos) width height)
-        delta (* spin (energy-delta positives neighbours))] 
-    (if (or (neg? delta) 
-            (< (rand) (boltzmann delta temperature)))
-      (if (contains? positives pos) 
-        (disj positives pos) 
-        (conj positives pos))
-      positives)))
-
+(defn metropolis-step 
+  "progress a lattice on by one metropolis step"
+  [rand-pos temp neighbours lattice]
+  (let [pos (rand-pos)
+        spin (if (contains? lattice pos) 1 -1)
+        delta (* spin (energy lattice (neighbours pos)))]
+    (if (or (neg? delta)
+            (< (rand) (weighting delta temp)))
+      (if (contains? lattice pos)
+        (disj lattice pos)
+        (conj lattice pos))
+      lattice)))
+        
 
 (defn- context-2d
   [el]
@@ -55,7 +53,7 @@
 
 (defn- draw-rect
   ([ctx x y] 
-   (draw-rect ctx x y 20 20))
+   (draw-rect ctx x y 8 8))
   ([ctx x y w h]
    (.fillRect ctx x y w h)))
 
@@ -65,18 +63,19 @@
     (do
       (.clearRect ctx 0 0 400 400)
       (doall (for [[x y] positions] 
-               (draw-rect ctx (* 20 x) (* 20 y)))))))
-
-#_(go 
-  (let [width 20 height 20 
-        temperature 1
-        positives (positive-spins width height)
-        step (partial metropolis-step width height)]
-    (loop [positives positives i 0] 
-      (<! (timeout 5))
-      (when (< i 10000)
-        (render positives)
-        (recur (step temperature positives) (inc i))))))
+               (draw-rect ctx (* 8 x) (* 8 y)))))))
 
 
+(let [width 50 
+      height 50 
+      temp 2
+      rand-pos (fn [] [(rand-int width) (rand-int height)])
+      neighbours #(cyclic-2d (neighbours-2d %) width height)
+      step (partial metropolis-step rand-pos temp neighbours)]
+   (go
+    (loop [lattice (lattice-2d width height) i 0]
+      (render lattice)
+      (<! (timeout 10))
+      (when (< i 100)
+        (recur (last (take 50 (iterate step lattice))) (inc i))))))                  
 
