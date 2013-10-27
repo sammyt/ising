@@ -19,11 +19,13 @@
 <style>
 </style>
   <body>
+
   <div class="container">
+
     <header>
       <h1>Towards a functional Metropolis</h1>
     </header>
-    <!--pre>
+    <!--
     * looking back at past work
     * all solutions are imperative
     * algorithm lost in implementation/optimization
@@ -31,8 +33,7 @@
     * curious about using the browser as a simulation platform
     * enter ClojureScript
     * walk through solution
-    </pre-->
-
+    -->
     <p>The other day I was looking back over some old emails, and I found
     a thread between myself and one of my old university tutors.  I followed
     the thread to find my submission of a Java simulation of the Ising Model.
@@ -159,11 +160,16 @@
    <div class="ising">
       <canvas id="out" width="500px" height="500px"></cancas>
     </div>
-</div>
- 
+
+    <h2>Onto 3 Dimensions</h2>
+    <div id="ising3d">
+      <canvas id="out3d" height="500px" width="500px"></canvas>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="three.min.js"></script>
+  <script type="text/javascript" src="retro-dev.js"></script>
   <script type="text/javascript" src="//use.typekit.net/oxa1lve.js"></script>
   <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
-
-  <script type="text/javascript" src="retro-dev.js"></script>
 </body>
 </html>

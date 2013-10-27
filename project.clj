@@ -5,8 +5,7 @@
   :repositories {"sonatype-staging" "https://oss.sonatype.org/content/groups/staging"}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/clojurescript "0.0-1913"]
-                 [org.clojure/core.async "0.1.242.0-44b1e3-alpha"]
-                 ]
+                 [org.clojure/core.async "0.1.242.0-44b1e3-alpha"]]
   :hooks [leiningen.cljsbuild]
   :plugins [[lein-cljsbuild "0.3.3"]
             [lein-kibit "0.0.8"]]
