@@ -46,7 +46,7 @@
     [positions]
     (do
       (.clearRect ctx 0 0 400 400)
-      (doall (for [[x y] positions] 
+      (dorun (for [[x y] positions] 
                (draw-rect ctx (* 8 x) (* 8 y)))))))
 
 (defn- neighbours-2d 
@@ -108,7 +108,7 @@
 
 (defn- light [] (js/THREE.PointLight. 0xffffff))
 
-(let [aspect 1
+#_(let [aspect 1
       near 0.1
       far 10000
       renderer (js/THREE.WebGLRenderer. (js-obj "canvas" (dom/getElement "out3d")))
@@ -120,8 +120,10 @@
   (.add scene (pos (light) -80 30 -80))
   (.add scene camera)
 
-  (doall (for [x positions  y positions z positions] 
-           (.add scene (pos (sphere 4) x y z))))
+  (reduce
+    (fn [scene sphere] (.add scene sphere) scene) 
+    scene
+    (for [x positions  y positions z positions] (pos (sphere 4) x y z)))
              
   (defn render-3d [time-stamp]
     (let [angle (/ time-stamp 3600)]
@@ -144,6 +146,4 @@
         (.render renderer scene camera)
         (<! (timeout 10))
         (when (< i 1)
-          (recur (step lattice) (inc i)))))))                  
-
-
+          (recur (step lattice) (inc i)))))))

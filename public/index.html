@@ -16,8 +16,6 @@
   <link rel="stylesheet" href="typo.css">
   <link rel="stylesheet" href="highlight/styles/ascetic.css">
   </head>
-<style>
-</style>
   <body>
 
   <div class="container">
@@ -37,7 +35,7 @@
     <p>The other day I was looking back over some old emails, and I found
     a thread between myself and one of my old university tutors.  I followed
     the thread to find my submission of a Java simulation of the Ising Model.
-    I took a peek for old times sake.</p> 
+    I took a peek.</p> 
 
     <p>Looking over old code can be a humbling experience.</p>
 
@@ -46,40 +44,38 @@
     Model in two dimensions.  I say simple, because the model is conceptually
     simple to understand given a few diagrams and a couple of paragraphs.
     I know this because I quickly gave up trying to figure out how my
-    simulation mapped back to a physical system and took to the internets for
+    simulation mapped back to a physical system and took to the internet for
     answers.</p>
 
     <p>Amongst the excellent explanations there were a number of other
-    simulations (mostly in Java) whose code I could read.  They all appeared to
-    be very similar (including my original solution), solving the model
-    with very imperative code.  Often making optimizations that make some
-    pretty large readability sacrifices.</p>
+    simulations (mostly in Java) whose code I read.  They all appeared to
+    be very similar (including my original solution), solving the model with
+    very imperative code.  Often making optimizations with pretty large
+    readability sacrifices.  Like my original I found it very difficult to
+    see the underly physics, or indeed the simulation algorithm being used
+    through the implementation details.</p>
 
-    <p>I've been working heavily in ClojureScript recently, its functional
-    roots and elegant data structures have had an big impact on how I think
-    about and solve problems.  So I thought I'd have a go at rebuilding the
-    simulation in idiomatic (to the best of my current knowledge) ClojureScript
-    to run within the browser.</p>
+    <p>I wondered what the same simulation would look like in Clojure(Script)
+    with its functional roots and elegant data structures.  So I has a go at
+    rebuilding it in idiomatic (to the best of my current knowledge)
+    ClojureScript to run within the browser.</p>
 
-    <h2>Ising</h2>
+    <h2>What is the Ising Model?</h2>
 
-    <p>The Ising model describes a idealised magnetic material, by modeling
+    <p>The Ising model describes an idealised magnetic material, by modeling
     a series of interacting charged particles.  It's named after a clever chap
     called Ernest Ising who solved the problem (in 1 dimension) mathematically
-    for his PHd.  This article is going to be pretty light on mathematics
-    (phew), instead I'll be doing a Monte Carlo simulation of the Ising model in
-    2 dimensions using the Metropolis algorithm.</p>
+    for his PHd.  This article is going to be pretty light on mathematics,
+    instead I'll be doing a Monte Carlo simulation.</p>
 
-    <p>So before diving into the algorithm here is a super basic explanation of
-    the Ising model in 2 dimensions.  I recommend if you are interested you
-    take a look at some of the other explanations out there, as I'm going to
-    gloss over lots of the details, just explaining what I hope is enough to
-    understand the code and the principles of the physical interactions.</p> 
+    <p>I'm going to gloss over lots of the details, just explaining what I hope
+    is enough to understand the code and the principles of the physical
+    interactions.</p> 
 
     <p>Picture a 2D lattice of charged particles, called spins.  Each of the
     spins can either point up or down.  In this particular lattice our spins
     are in their lowest energy state when spins are aligned in the same
-    direction (giving us a ferromagnet).  Physical systems love there
+    direction (meaning we have a ferromagnet).  Physical systems love there
     lowest energy states, so we expect that if we don't add any extra energy
     (heat) then the spins will all attempt to align, and thus magnetise.</p>
 
@@ -126,37 +122,76 @@
     </table>
 
     <p>At a low enough temperature we would expect that the lattice would, over
-    time, lower its energy and the spins would align</p>
-
+    time, align its spins increasing the overall magnetisation.  If we were to
+    add lots of energy the spins would be more likely to oppose their
+    neighbours, and the magnetisation would decrease.</p>
 
     <h2>Metropolis</h2>
 
     <p>The Metropolis algorithm gives us some simple steps we can take to
-    update our lattice, taking it from one state to another.  The states that
-    the metropolis algorithm takes us through should progress the system in
-    a way the is consistent with its physical rules, but not so computationally
-    exhaustive that we would never get anywhere. </p>
+    update our lattice, moving it from one state to another. Applying the
+    Metropolis Algorithm should progress the lattice in a way the is consistent
+    with its physical rules, but not so computationally exhaustive that we
+    would never get anywhere.</p>
 
     <p>To take the lattice from one state to another we will attempt to flip
-    a single spin, reversing its direction.  The algorithm give us the
+    a single spin, reversing its direction.  The algorithm gives us the
     following method to determine if the flip is acceptable.</p>
 
      <ol>
       <li>Choose any spin from within the lattice at random</li>
-      <li>Calculate the energy require to flip just that spin</li>
-      <li>If the energy require to flip it is negative, then make the
-      flip, and stop. If however the flip would require energy to complete
-      then only flip it based on a calculated probability.</li>
+
+      <li>Calculate the energy required to flip just that spin</li>
+
+      <li>If the energy required to flip it is negative, then make the flip. If
+      however the flip would require energy to complete then only flip it based
+      on a probability distribution.</li>
+
     </ol>
 
-    <p>That sounds fairly straight forward.  There are two things we need to
-    be able to calculate in order to make it work.  Firstly we need to know
-    how to find the change in energy that would occur if a spin is flipped.
-    Then we need to be able to calculate this probability, used to determine
-    if the spin should be flipped when the energy increases.</p>
+    <p>The Ising model defines the equations needed for calculating the energy
+    change and the probability distribution.</p>
+    
+    <p>And that's about it.  The simulation runs the Metropolis over and over
+    at different temperatures to investigate the effect on the
+    magnetisation.</p>
 
-    <p></p>
+   <h2>Coding it up</h2>
 
+    <p>I am going to write my metropolis algorithm in a way that feels as natural
+    as I can make in ClojureScript.<p> 
+
+
+   <h3>What is a lattice?</h3>
+
+      <p>Perhaps the most important decision in the code base will be how to model
+   the lattice with ClojureScripts data structures.  All the code from that
+   point on will be a means of updating, querying or rendering the lattice, so
+   its impact will be evident throughout the code.</p>
+
+   <p>When I last attempted this problem in Java I created an array of arrays,
+   to represent the 2 dimensions, then populated each item with a 1 or -1 to
+   represent each spin.</p>
+
+   <p>This time I am going to use a Set</p>
+
+   <pre><code class="clojure">
+#{[1 3] [3 5] [2 2]}
+   </code></pre>
+
+   <p>Why a Set?  If we forget all this talk of 2D for a moment, a lattice is
+   a collection of spins, and each spin has a unique position.  So if the
+   positions are unique then they could be used as values in a Set.  We also
+   know that spins can only be positive or negative (1 or -1), which means that
+   any spin that isn't positive must be negative.  So the whole state of the
+   lattice can be stored in a simple Set, where only the positions of either
+   the positive or negative spins are held</p>
+
+   <h3>Progress, as a sequence</h3>
+
+   <p>Now I have Set for a lattice I want to update it, using the Metropolis Alg.
+   Each time a spin is flipped (or not) the state of the system progresses.  </p>
+   
    <div class="ising">
       <canvas id="out" width="500px" height="500px"></cancas>
     </div>
@@ -169,7 +204,7 @@
 
   <script type="text/javascript" src="three.min.js"></script>
   <script type="text/javascript" src="retro-dev.js"></script>
-  <script type="text/javascript" src="//use.typekit.net/oxa1lve.js"></script>
-  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+  <script src="highlight/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
 </body>
 </html>
