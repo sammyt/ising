@@ -5,8 +5,6 @@
   (:require-macros 
     [cljs.core.async.macros :refer [go]]))
 
-(def not-nil? (complement nil?))
-
 (defn- weighting 
   "calculate the boltzmann factor"
   [energy-delta temperature]
@@ -15,11 +13,11 @@
 (defn- energy
   "calculate the change in energy should a spin be flipped"
   [positives neighbours]
-  (+ -4 (* 2 (count (filter not-nil? (map positives neighbours))))))
+  (+ -4 (* 2 (count (filter (complement nil?) (map positives neighbours))))))
 
 (defn metropolis-step 
   "progress a lattice on by one metropolis step"
-  [rand-pos temp neighbours lattice]
+  [neighbours rand-pos temp lattice]
   (let [pos (rand-pos)
         spin (if (contains? lattice pos) 1 -1)
         delta (* spin (energy lattice (neighbours pos)))]
@@ -30,24 +28,6 @@
         (conj lattice pos))
       lattice)))
         
-
-(defn- context-2d
-  [el]
-  (.getContext el "2d"))
-
-(defn- draw-rect
-  ([ctx x y] 
-   (draw-rect ctx x y 8 8))
-  ([ctx x y w h]
-   (.fillRect ctx x y w h)))
-
-(let [ctx (context-2d (dom/getElement "out"))]
-  (defn- render
-    [positions]
-    (do
-      (.clearRect ctx 0 0 400 400)
-      (dorun (for [[x y] positions] 
-               (draw-rect ctx (* 8 x) (* 8 y)))))))
 
 (defn- neighbours-2d 
   "Calculates the nearest neighbours within a 2d infinite lattice"
@@ -61,7 +41,6 @@
   (for [[dx dy dz] 
         #{[-1 0 0] [1 0 0] [0 0 -1] [0 0 1] [0 -1 0] [0 1 0]}] 
     [(+ x dx) (+ y dy) (+ z dz)]))
-
 
 (defn- hot-lattice 
   "generates randomly positioned positive spins within a 2d space"
@@ -78,19 +57,39 @@
    (map (fn [[x y z]] [(mod x w) (mod y h) (mod z d)]) positions)))
 
 
+(defn- context-2d
+  [el]
+  (.getContext el "2d"))
 
-#_(let [width 50 
-      height 50 
-      temp 2
-      rand-pos (fn [] [(rand-int width) (rand-int height)])
+(defn- draw-rect
+  ([ctx x y] 
+   (draw-rect ctx x y 8 8))
+  ([ctx x y w h]
+   (.fillRect ctx x y w h)))
+
+(let [ctx (context-2d (dom/getElement "out"))]
+  (defn- render
+    [positions]
+    (do
+      (.clearRect ctx 0 0 160 160)
+      (dorun (for [[x y] positions] 
+               (draw-rect ctx (* 8 x) (* 8 y)))))))
+
+#_(let [width 20 
+      height 20 
+      start-temp 0.5
       neighbours #(cyclic (neighbours-2d %) width height)
-      step (partial metropolis-step rand-pos temp neighbours)]
+      step (partial metropolis-step neighbours)]
    (go
-    (loop [lattice (hot-lattice width height) i 0]
+    (loop [lattice (hot-lattice width height) 
+           temp start-temp 
+           i 0]
       (render lattice)
-      (<! (timeout 10))
-      (when (< i 100)
-        (recur (last (take 50 (iterate step lattice))) (inc i))))))
+      (<! (timeout 40))
+      (when (< i 10000)
+        (recur (last (take 50 (iterate (partial step [(rand-int width) (rand-int height)] temp) lattice))) 
+               (+ 0.005 temp)
+               (inc i))))))
 
 
 (defn- pos

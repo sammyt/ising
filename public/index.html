@@ -62,17 +62,14 @@
 
     <h2>What is the Ising Model?</h2>
 
-    <p>The Ising model describes an idealised magnetic material, by modeling
-    a series of interacting charged particles.  It's named after a clever chap
-    called Ernest Ising who solved the problem (in 1 dimension) mathematically
-    for his PHd.  This article is going to be pretty light on mathematics,
-    instead I'll be doing a Monte Carlo simulation.</p>
-
     <p>I'm going to gloss over lots of the details, just explaining what I hope
     is enough to understand the code and the principles of the physical
     interactions.</p> 
-
-    <p>Picture a 2D lattice of charged particles, called spins.  Each of the
+    
+    <p>The Ising model describes an idealised magnetic material, by modeling
+    a series of interacting charged particles.</p>
+    
+    <p>So picture a lattice of charged particles, called spins.  Each of the
     spins can either point up or down.  In this particular lattice our spins
     are in their lowest energy state when spins are aligned in the same
     direction (meaning we have a ferromagnet).  Physical systems love there
@@ -126,7 +123,7 @@
     add lots of energy the spins would be more likely to oppose their
     neighbours, and the magnetisation would decrease.</p>
 
-    <h2>Metropolis</h2>
+    <h2>Simulating with Metropolis</h2>
 
     <p>The Metropolis algorithm gives us some simple steps we can take to
     update our lattice, moving it from one state to another. Applying the
@@ -152,22 +149,93 @@
     <p>The Ising model defines the equations needed for calculating the energy
     change and the probability distribution.</p>
     
-    <p>And that's about it.  The simulation runs the Metropolis over and over
-    at different temperatures to investigate the effect on the
+    <p>And that's about it.  The simulation runs these Metropolis steps over
+    and over at different temperatures to investigate the effect on the
     magnetisation.</p>
 
-   <h2>Coding it up</h2>
+    
+   <h2>Metropolis in Clojure</h2>
 
-    <p>I am going to write my metropolis algorithm in a way that feels as natural
-    as I can make in ClojureScript.<p> 
+   <p>Lets jump into the code and look at how I've tried to represent the above
+   steps in Clojure.</p>
 
+   <pre><code class="clojure">
+(defn metropolis-step 
+  "progress a lattice on by one metropolis step.
+  
+    rand-pos:   generates a random valid position
+    neighbours: finds positions of neighbours 
+    temp:       the current lattice temperature
+    lattice:    a Set of the positive spins"
+
+  [rand-pos neighbours temp lattice]
+
+  (let [pos (rand-pos)
+        spin (if (contains? lattice pos) 1 -1)
+        delta (* spin (energy lattice (neighbours pos)))]
+
+    ;; is the flip acceptable
+    (if (or (neg? delta)
+            (&lt (rand) (weighting delta temp)))
+      ;; make the flip
+      (if (contains? lattice pos)
+        (disj lattice pos)
+        (conj lattice pos))
+      ;; flip rejected
+      lattice)))
+   </code></pre>
+
+   <p>Step one of the Metropolis algorithm is to generate a random position
+   within a lattice, I've done this by providing a function which knows
+   how to generate a position for the given lattice.</p>
+
+   <p>I then go on to compute the <code>delta</code> in energy required to flip
+   the randomly selected spin.  I've used another function <code>energy</code>
+   in the process which calculates the magnitude of the energy change should
+   a spin be flipped.</p>
+
+   <p>The body of the function is then left to decide based on those values if
+   a spin should be flipped.  <code>weighting</code> calculates the probability
+   distribution based on the change in energy and the temperature.</p>
+
+   <h2>An imperative Metropolis</h2>
+
+   <p>To understand how this is different, lets contrast the above solution 
+   to an imperative solution in JavaScript (could have used Java, but trying
+   to save some ink).</p>
+
+   <pre><code>
+metropolisStep(){
+  int x = rand()
+    , y = rand()
+
+  int spin = lattice[x][y]
+
+  int west  = cyclic(x - 1, width)
+    , east  = cyclic(x + 1, width)
+    , north = cyclic(y + 1, height)
+    , south = cyclic(y - 1, height)
+
+  float delta = energy(spin, north, south, east, west)
+
+  if(delta &lt 0 || Math.rand() &lt prob(delta, temp)){
+    lattice[x][y] *= -1
+  }
+}
+   </code></pre>
 
    <h3>What is a lattice?</h3>
 
-      <p>Perhaps the most important decision in the code base will be how to model
-   the lattice with ClojureScripts data structures.  All the code from that
-   point on will be a means of updating, querying or rendering the lattice, so
-   its impact will be evident throughout the code.</p>
+    <p>Perhaps the most important decision in the code base will be how to
+    model the lattice with Clojures data structures.  All the code from that
+    point on will be a means of updating, querying or rendering the lattice,
+    so its impact will be evident throughout the code.</p>
+
+   <p>Clojures data structures are at the heart of the language, affecting much
+   more than how you model your data.  Clojure encourages you to program to
+   abstractions, not the abstractions you invent, but the genuinely generic
+   abstractions which the language is built on.  And no abstractions in Clojure
+   are more important than those of its data structures.</p>
 
    <p>When I last attempted this problem in Java I created an array of arrays,
    to represent the 2 dimensions, then populated each item with a 1 or -1 to
@@ -187,13 +255,40 @@
    lattice can be stored in a simple Set, where only the positions of either
    the positive or negative spins are held</p>
 
+   <p>By choosing to use one of the native collection types I will be in much
+   better placed to leverage the full power of Clojures fabulous collection
+   abstractions.</p>
+
+
+   <p>In this implementation a lattice will be represented by just its positive
+   spins</p>
+
    <h3>Progress, as a sequence</h3>
 
-   <p>Now I have Set for a lattice I want to update it, using the Metropolis Alg.
-   Each time a spin is flipped (or not) the state of the system progresses.  </p>
-   
+   <p>Now I have Set for a lattice I want to update it using the Metropolis
+   Alg.  Each time a spin is flipped (or not) the state of the system
+   progresses.  Again the more I leverage the language the more I know it will
+   reward me, so I am going to try and represent this progression of time as
+   a Clojure abstraction, the sequence.</p>
+  
+   <p>To create a sequence from a function I'm using <code>iterate</code>.
+   Iterate returns a lazy sequence of a function applied over and over to
+   a seed</p>
+
+   <pre><code class="clojure">
+   (inc 0)
+   ;= 1
+   (first (iterate inc 0))
+   ;= 0
+   (take 5 (iterate inc 0))
+   ;= (0 1 2 3 4)
+   </code></pre>
+
+   <p>I just need to write my Metropolis step function to take a lattice as
+   input and produce the next lattice state as output to partake in the above
+   example</p>
    <div class="ising">
-      <canvas id="out" width="500px" height="500px"></cancas>
+      <canvas id="out" width="160px" height="160px"></cancas>
     </div>
 
     <h2>Onto 3 Dimensions</h2>
